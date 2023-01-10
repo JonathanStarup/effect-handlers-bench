@@ -1,75 +1,59 @@
-// Jonathan Frech, 2022-08-18, 2022-08-25
-// adapted from: https://raw.githubusercontent.com/effect-handlers/effect-handlers-bench/a61925f19c60600cd0bdaf8b3a6b82eea9aefcf0/benchmarks/koka/004_triples/benchmark.kk
-
 import io/args
 import immutable/list
 import immutable/option
 import text/string
 
-// using a named record instead of an anonymous triple
-
 record Triple(a: Int, b: Int, c: Int)
 
-
-// transpiled koka
-
 effect Flip {
-    def flip(): Boolean
+  def flip(): Boolean
 }
 
 effect Fail {
-    def fail(): Nothing
+  def fail(): Nothing
 }
 
-def faill[R](): R / Fail = do fail() match {}
-
-
-def hashTriple(triple: Triple): Int = triple match { case Triple(a,b,c) =>
-    mod(((53 * a) + 2809 * b + 148877 * c), 1000000007) }
-
+def hashTriple(triple: Triple): Int = triple match {
+  case Triple(a,b,c) => mod(((53 * a) + 2809 * b + 148877 * c), 1000000007)
+}
 
 def choice(n: Int): Int / {Flip, Fail} = {
-    if (n < 1) {
-        faill[Int]()
-    } else if (do flip()) {
-        n
-    } else {
-        choice(n - 1)
-    }
+  if (n < 1) {
+    do fail() match {}
+  } else if (do flip()) {
+    n
+  } else {
+    choice(n - 1)
+  }
 }
 
 def triple(n: Int, s: Int): Triple / {Flip, Fail} = {
-    val i = choice(n)
-    val j = choice(i - 1)
-    val k = choice(j - 1)
-    if (i + j + k == s) {
-        Triple(i, j, k)
-    } else {
-        faill[Triple]()
-    }
+  val i = choice(n)
+  val j = choice(i - 1)
+  val k = choice(j - 1)
+  if (i + j + k == s) {
+    Triple(i, j, k)
+  } else {
+    do fail() match {}
+  }
 }
 
 def sumTriples(n: Int, s: Int): Int = {
-    try {
-        val r = triple(n, s)
-        hashTriple(r)
-    } with Flip {
-        def flip() = mod(resume(true) + resume(false), 1000000007)
-    } with Fail {
-        def fail() = 0
-    }
+  try {
+    val r = triple(n, s)
+    hashTriple(r)
+  } with Flip {
+    def flip() = mod(resume(true) + resume(false), 1000000007)
+  } with Fail {
+    def fail() = 0
+  }
 }
 
-
-// deviating invocation
-
-// def main() = println(sumTriples(300, 300))
-
 def main() = commandLineArgs() match {
-    case Nil() => println(sumTriples(300, 300))
-    case Cons(x, Cons(y, Nil())) => (toInt(x), toInt(y)) match {
-        case (Some(s), Some(n)) => println(sumTriples(s, n))
-        case _ => println("Unexpected non-integer(s) '" ++ show(x) ++ "', '" ++ show(y) ++ "'")
-    }
-    case other => println("Expects zero or two arguments, not '" ++ show(size(other)) ++ "'")
+  case Nil() => println(sumTriples(300, 300))
+  case Cons(x, Cons(y, Nil())) => (toInt(x), toInt(y)) match {
+    case (Some(s), Some(n)) => println(sumTriples(s, n))
+    case _ => println("Unexpected non-integer(s) '" ++ show(x) ++ "', '" ++ show(y) ++ "'")
+  }
+  case other => println("Expects zero or two arguments, not '" ++ show(size(other)) ++ "'")
 }
